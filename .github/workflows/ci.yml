@@ -76,7 +76,7 @@ jobs:
     # 7. Trivy Scan
     # -------------------------
     - name: Scan Image (Trivy)
-      uses: aquasecurity/trivy-action@0.20.0
+      uses: aquasecurity/trivy-action@v0.11.2
       with:
         image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
         format: table
@@ -99,19 +99,21 @@ jobs:
       run: |
         IMAGE=${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME
 
-    # Tag with commit SHA
         docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE:${{ github.sha }}
 
-    # Tag as latest ONLY for develop branch
+        # Tag with commit SHA
+        docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE:${{ github.sha }}
 
+        # Tag as latest ONLY for develop branch
         if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
         docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE:latest
         fi
 
-    # Push commit SHA
+        # Push commit SHA
         docker push $IMAGE:${{ github.sha }}
 
-    # Push latest (if exists)
+        # Push latest (if exists)
+
         if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
         docker push $IMAGE:latest
         fi
