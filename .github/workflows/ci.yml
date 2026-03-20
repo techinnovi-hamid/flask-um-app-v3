@@ -1,0 +1,116 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [develop, feature/*]
+  pull_request:
+    branches: [main,develop]
+
+env:
+  IMAGE_NAME: flask-sqlite-app
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  
+
+    # -------------------------
+    # 1. Setup Python
+    # -------------------------
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r app/requirements.txt
+        pip install flake8 pytest pip-audit
+
+    # -------------------------
+    # 2. Linting
+    # -------------------------
+    - name: Lint Code (flake8)
+      run: |
+        flake8 app/
+
+    - name: Set PYTHONPATH
+      run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV 
+
+    # -------------------------
+    # 3. Unit Tests
+    # -------------------------
+    - name: Run Tests
+      run: |
+        python -m pytest
+
+    # -------------------------
+    # 4. Security Scan (Secrets)
+    # -------------------------
+    - name: Gitleaks Scan
+      uses: gitleaks/gitleaks-action@v2 
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
+
+    # -------------------------
+    # 5. Dependency Scan
+    # -------------------------
+    - name: Dependency Scan (pip-audit)
+      run: |
+        pip-audit
+
+    # -------------------------
+    # 6. Docker Build
+    # -------------------------
+    - name: Build Docker Image
+      run: |
+        docker build -t $IMAGE_NAME:${{ github.sha }} -f docker/Dockerfile .
+
+    # -------------------------
+    # 7. Trivy Scan
+    # -------------------------
+    - name: Scan Image (Trivy)
+      uses: aquasecurity/trivy-action@v0.11.2
+      with:
+        image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+        format: table
+        exit-code: 1
+        severity: CRITICAL,HIGH
+
+    # -------------------------
+    # 8. Login to DockerHub
+    # -------------------------
+    - name: Login to DockerHub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    # -------------------------
+    # 9. Push Image
+    # -------------------------
+    - name: Tag & Push Image
+      run: |
+        IMAGE=${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME
+
+        # Tag with commit SHA
+        docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE:${{ github.sha }}
+
+        # Tag as latest ONLY for develop branch
+        if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+        docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE:latest
+        fi
+
+        # Push commit SHA
+        docker push $IMAGE:${{ github.sha }}
+
+        # Push latest (if exists)
+        if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+        docker push $IMAGE:latest
+        fi
