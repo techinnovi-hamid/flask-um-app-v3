@@ -3,4 +3,4 @@ resources:
 
 images:
   - name: techinnovihamid/flask-sqlite-app
-    newTag: 4b53acb1d3b1d5fe0bce4387a4ffeacc6d654ad7
+    newTag: 9dabf82d4cad440d2b5d3bc98a05b71a04e12e07
