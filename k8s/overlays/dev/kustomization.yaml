@@ -1,0 +1,6 @@
+resources:
+  - ../../base
+
+images:
+  - name: techinnovihamid/flask-sqlite-app
+    newTag: latest

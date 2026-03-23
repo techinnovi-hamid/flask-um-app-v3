@@ -20,3 +20,4 @@ instance/
 #env variable
 .env
 .env.*
+kind-config.yaml

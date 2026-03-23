@@ -117,3 +117,26 @@ jobs:
         if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
         docker push $IMAGE:latest
         fi
+
+    # -------------------------
+    # 10. Update GitOps Manifest
+    # -------------------------
+    - name: Update Kubernetes Image Tag
+      if: github.ref == 'refs/heads/develop'
+      run: |
+        IMAGE=${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME
+        TAG=${{ github.sha }}
+
+        sed -i "s/newTag:.*/newTag: $TAG/" k8s/overlays/dev/kustomization.yaml
+
+    - name: Commit & Push Changes
+      if: github.ref == 'refs/heads/develop'
+      run: |
+        git config --global user.name "github-actions"
+        git config --global user.email "actions@github.com"
+
+        git add k8s/overlays/dev/kustomization.yaml
+        git commit -m "Update image tag to ${{ github.sha }}" || echo "No changes"
+
+        git push
+
